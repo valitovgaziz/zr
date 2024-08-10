@@ -1,18 +1,20 @@
 package main
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 	"zr/configs"
 	"zr/models"
 
+	_ "github.com/lib/pq"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/ilyakaznacheev/cleanenv"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
 )
@@ -48,37 +50,27 @@ func main() {
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_NAME"),
 	)
-	DBconfig, err := pgxpool.ParseConfig(dbURL)
+	sqlDB, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Unable to parse config: %v", err)
-		os.Exit(2)
+		log.Fatal("Can't connect to database", err)
 	}
-
-	pool, err := pgxpool.ConnectConfig(context.Background(), DBconfig)
-	if err != nil {
-		log.Fatal("Unable to connect to database: %v", err)
-		os.Exit(2)
-	}
-	defer pool.Close()
+	defer sqlDB.Close()
+	// set max pool connections 10 and maxIdle con 10, and one hour lifetime conn
+	sqlDB.SetMaxOpenConns(10)
+	sqlDB.SetConnMaxIdleTime(10)
+	sqlDB.SetConnMaxLifetime(time.Hour)
 	logger := log.New(os.Stderr, "SQL: ", log.Flags())
-	DB := reform.NewDB(pool, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
+	// init glob var with New reform DB orm
+	DB := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
+	log.Println("Db connected ", DB.String())
 
-	// sqlDB, err := sql.Open("postgres", dbURL)
-	// if err != nil {
-	// 	log.Fatal("Can't connect to database", err)
-	// }
-
-	// logger := log.New(os.Stderr, "SQL: ", log.Flags())
-
-	// DB := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
-	// log.Println("Db connected ", DB.String())
-
+	// end the programm server is closed
 	slog.Info("Server is closed", "info", <-ServerIsClosed)
 }
 
 // get news list
 func getNews(c *fiber.Ctx) error {
-	newses, err := DB.FindAllFrom(models.NewsTable, "id")
+	newses, err := DB.SelectAllFrom(models.NewsTable, "")
 	if err != nil {
 		return c.JSON(http.StatusNotFound)
 	}
