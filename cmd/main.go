@@ -34,7 +34,7 @@ func main() {
 	// init server and routing
 	app := fiber.New()
 	app.Get("/list", getNews)
-	app.Post("/edit/:id", editNews)
+	app.Post("/edit", editNews)
 	go func() {
 		defer close(ServerIsClosed)
 		log.Printf("app listen and serv: %s", app.Listen(":3000"))
@@ -64,7 +64,7 @@ func main() {
 	DB := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
 	log.Println("Db connected ", DB.String())
 
-	// end the programm server is closed
+	// end the programm server close
 	slog.Info("Server is closed", "info", <-ServerIsClosed)
 }
 
