@@ -42,7 +42,7 @@ func main() {
 
 	// init DB
 	dbURL := fmt.Sprintf(
-		"%s://%s:%s@%s:%s/%s",
+		"%s://%s:%s@%s:%s/%s=",
 		os.Getenv("DRIVER"),
 		os.Getenv("DB_USER"),
 		os.Getenv("DB_PASSWORD"),
@@ -53,6 +53,11 @@ func main() {
 	sqlDB, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Can't connect to database", err)
+	}
+	errP := sqlDB.Ping()
+	if errP != nil {
+		log.Fatal("sqlDB not connected message: ", errP)
+		os.Exit(2)
 	}
 	defer sqlDB.Close()
 	// set max pool connections 10 and maxIdle con 10, and one hour lifetime conn
