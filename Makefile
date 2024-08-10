@@ -4,6 +4,9 @@ build:
 run: build
 	@./bin/zr
 
+t:
+	@go mod tidy
+
 test:
 	@go test ./...
 

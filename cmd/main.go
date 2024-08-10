@@ -14,7 +14,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/spf13/viper"
 	"gopkg.in/reform.v1"
 	"gopkg.in/reform.v1/dialects/postgresql"
 )
@@ -25,10 +25,16 @@ var ServerIsClosed = make(chan bool)
 
 func main() {
 	// read config to env var
-	err := cleanenv.ReadEnv(&Configs)
+	viper.SetConfigName("configs")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	err := viper.ReadInConfig()
 	if err != nil {
-		log.Fatal("Can't read env var", err)
-		os.Exit(2)
+		log.Fatal("Can't read config message: ", err)
+	}
+	err = viper.Unmarshal(&Configs)
+	if err != nil {
+		log.Fatal("Can't unmarshal config", err)
 	}
 
 	// init server and routing
@@ -42,31 +48,33 @@ func main() {
 
 	// init DB
 	dbURL := fmt.Sprintf(
-		"%s://%s:%s@%s:%s/%s=",
-		os.Getenv("DRIVER"),
-		os.Getenv("DB_USER"),
-		os.Getenv("DB_PASSWORD"),
-		os.Getenv("HOST_DB"),
-		os.Getenv("DB_PORT"),
-		os.Getenv("DB_NAME"),
+		"%s://%s:%s@%s:%s/%s?sslmode=%s",
+		Configs.DRIVER,
+		Configs.DB_USER,
+		Configs.DB_PASSWORD,
+		Configs.HOST_DB,
+		Configs.DB_PORT,
+		Configs.DB_NAME,
+		Configs.SSLmode,
 	)
-	sqlDB, err := sql.Open("postgres", dbURL)
+	poolSqlDB, err := sql.Open("postgres", dbURL)
 	if err != nil {
 		log.Fatal("Can't connect to database", err)
 	}
-	errP := sqlDB.Ping()
+	errP := poolSqlDB.Ping()
 	if errP != nil {
 		log.Fatal("sqlDB not connected message: ", errP)
 		os.Exit(2)
+	} else {
+		defer poolSqlDB.Close()
 	}
-	defer sqlDB.Close()
 	// set max pool connections 10 and maxIdle con 10, and one hour lifetime conn
-	sqlDB.SetMaxOpenConns(10)
-	sqlDB.SetConnMaxIdleTime(10)
-	sqlDB.SetConnMaxLifetime(time.Hour)
+	poolSqlDB.SetMaxOpenConns(10)
+	poolSqlDB.SetConnMaxIdleTime(10)
+	poolSqlDB.SetConnMaxLifetime(time.Hour)
 	logger := log.New(os.Stderr, "SQL: ", log.Flags())
 	// init glob var with New reform DB orm
-	DB := reform.NewDB(sqlDB, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
+	DB := reform.NewDB(poolSqlDB, postgresql.Dialect, reform.NewPrintfLogger(logger.Printf))
 	log.Println("Db connected ", DB.String())
 
 	// end the programm server close

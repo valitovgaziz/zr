@@ -1,0 +1,16 @@
+# data base configs
+DB_USER: postgres
+DB_PASSWORD: postgres
+DB_NAME: postgres
+DB_PORT: 5432
+HOST_DB: localhost
+SSLmode: disable
+DRIVER: postgres
+
+# server configs
+SERVER_PORT: 3000
+
+# migrations configs
+GOOSE_MIGRATION_DIR: migrations
+GOOSE_DRIVER: postgresql
+GOOSE_DBSTRING: host=db port=5432 user=postgres password=postgres dbname=postgres
