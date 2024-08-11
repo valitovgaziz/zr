@@ -23,3 +23,5 @@ FROM
     NewsCategories;
 DROP TABLE IF EXISTS newscategories;
 ALTER TABLE NewNewsCategories RENAME TO newscategories;
+
+INSERT INTO newscategories VALUES (34, 344);
